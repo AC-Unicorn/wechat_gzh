@@ -1,0 +1,1 @@
+1. export TOGETHER_API_KEY before start the server 
