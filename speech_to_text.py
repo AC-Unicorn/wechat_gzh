@@ -29,9 +29,6 @@ def convert_amr_to_mp3(input_amr, output_mp3=None):
         print(f"Error converting {input_amr} to MP3: {e}")
         return None
 
-# Example usage
-convert_amr_to_mp3("example.amr")
-
 
 def audio_to_text(audio_file):
     mp3_path = convert_amr_to_mp3(audio_file)

@@ -10,8 +10,8 @@ app = Flask(__name__)
 client = Together()
 
 # 配置你的微信公众号信息
-TOKEN = "chriscao19960821"
-WECHAT_ACCESS_TOKEN = "89_ey88-LCdg0ZLtLV5vmexy8nVV0xCPuZy62FK_VTYnAzDGwehL0p-b1qgecg5EdZvXvEcZOLvxRVA2u7v1_3yPKIc6m2zdDZZs_GAU3rlJBrbfurAAp_vhVRrE2oCECdAHAJLJ"
+TOKEN = ""
+WECHAT_ACCESS_TOKEN = ""
 MEDIA_SAVE_PATH = "wechat_audio"
 
 def download_voice(media_id):
@@ -79,7 +79,7 @@ def wechat():
         else:
             return "暂不支持该类型消息"
 
-        print(data["xml"])
+        print(user_msg)
         # 让 AI 处理用户消息
         ai_reply = call_deepseek_api(user_msg)
         print(ai_reply)
