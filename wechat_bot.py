@@ -1,6 +1,5 @@
-from flask import Flask, request
+from flask import Flask, request, jsonify
 from together import Together
-import xmltodict
 import time
 import requests
 
@@ -20,7 +19,7 @@ def download_voice(media_id):
     response = requests.get(url, stream=True)
 
     if response.status_code == 200:
-        file_path = f"{MEDIA_SAVE_PATH}/{media_id}.amr"  # 语音文件格式可能是 amr 或 mp3
+        file_path = f"{MEDIA_SAVE_PATH}/{media_id}.amr"
         with open(file_path, "wb") as f:
             for chunk in response.iter_content(1024):
                 f.write(chunk)
@@ -30,14 +29,6 @@ def download_voice(media_id):
         print("语音下载失败:", response.json())
         return None
 
-def check_signature(signature, timestamp, nonce):
-    """校验微信服务器身份（初次接入时使用）"""
-    import hashlib
-    values = [TOKEN, timestamp, nonce]
-    values.sort()
-    sha1 = hashlib.sha1("".join(values).encode("utf-8")).hexdigest()
-    return sha1 == signature
-
 def call_deepseek_api(prompt):
     response = client.chat.completions.create(
         model="deepseek-ai/DeepSeek-V3",
@@ -45,61 +36,37 @@ def call_deepseek_api(prompt):
     )
     return response.choices[0].message.content
 
-@app.route("/", methods=["GET", "POST"])
+@app.route("/wechat", methods=["POST"])
 def wechat():
-    """处理微信公众号消息，包括文本和语音"""
-    if request.method == "GET":
-        # 校验服务器地址
-        signature = request.args.get("signature")
-        timestamp = request.args.get("timestamp")
-        nonce = request.args.get("nonce")
-        echostr = request.args.get("echostr")
-        if check_signature(signature, timestamp, nonce):
-            return echostr
-        print('Failed validation')
-        return "验证失败"
-
+    """处理微信公众号消息，并返回 JSON 响应"""
     try:
-        # 解析 XML 消息
-        data = xmltodict.parse(request.data)
-        msg_type = data["xml"].get("MsgType", "")
-        user_id = data["xml"].get("FromUserName", "")
-        my_id = data["xml"].get("ToUserName", "")
+        data = request.get_json()
+        msg_type = data.get("MsgType", "")
+        user_id = data.get("FromUserName", "")
         
         if msg_type == "text":
-            # 处理文本消息
-            user_msg = data["xml"].get("Content", "")
+            user_msg = data.get("Content", "")
         elif msg_type == "voice":
-            # 处理语音消息
-            user_msg = data["xml"].get("Recognition", "")  # 语音识别文本
-            media_id = data["xml"].get("MediaId", "")
+            user_msg = data.get("Recognition", "")
+            media_id = data.get("MediaId", "")
             if not user_msg:
                 audio_file = download_voice(media_id)
                 user_msg = audio_to_text(audio_file)
         else:
-            return "暂不支持该类型消息"
+            return jsonify({"error": "暂不支持该类型消息"})
 
-        print(user_msg)
-        # 让 AI 处理用户消息
         ai_reply = call_deepseek_api(user_msg)
-        print(ai_reply)
-        # 生成 XML 回复
-        response_xml = f"""
-        <xml>
-        <ToUserName><![CDATA[{user_id}]]></ToUserName>
-        <FromUserName><![CDATA[{my_id}]]></FromUserName>
-        <CreateTime>{int(time.time())}</CreateTime>
-        <MsgType><![CDATA[text]]></MsgType>
-        <Content><![CDATA[{ai_reply}]]></Content>
-        </xml>
-        """
-
-        print('send resp...')
-        return response_xml
+        
+        return jsonify({
+            "user_id": user_id,
+            "message": user_msg,
+            "reply": ai_reply,
+            "timestamp": int(time.time())
+        })
 
     except Exception as e:
         print(f"Error processing WeChat request: {e}")
-        return "处理失败"
+        return jsonify({"error": "处理失败", "details": str(e)})
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=8000)
