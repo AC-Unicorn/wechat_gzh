@@ -4,3 +4,6 @@
 4. need ffmpeg for voice format conversion
 
 总结陈词，不能用微信公众号的转发，因为有5秒回复限制，而且公众号给用户主动发消息的数量也有限制。
+
+# Start tunnel server, mini program need https for backend
+cloudflared tunnel --url http://localhost:8000
